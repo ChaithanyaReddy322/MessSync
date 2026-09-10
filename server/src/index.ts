@@ -13,7 +13,7 @@ import { seedMockUsers } from './controllers/auth.controller'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = Number(process.env.PORT) || 5000
 
 // Connect to MongoDB
 connectDB().then(() => {
@@ -51,6 +51,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 })
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running in ${process.env.NODE_ENV} mode on port ${PORT}`)
 })
+
