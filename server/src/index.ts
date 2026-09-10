@@ -17,14 +17,34 @@ const PORT = Number(process.env.PORT) || 5000
 
 // Connect to MongoDB
 connectDB().then(() => {
-  // Seed mock users database
-  seedMockUsers()
+  // Seed mock users and initial data
+  seedMockUsers(true).catch((err) => console.error('Auto-seed error on connect:', err))
 })
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+  'https://hostel-frontend-5fx4.onrender.com'
+]
+
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, postman, server-to-server)
+      if (!origin) return callback(null, true)
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.onrender.com') ||
+        (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL)
+      ) {
+        return callback(null, true)
+      }
+      // Allow any requesting origin
+      return callback(null, true)
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

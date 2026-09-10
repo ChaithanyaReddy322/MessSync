@@ -8,13 +8,15 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware'
 
 // Helper to set HTTP-only cookie
 const setRefreshTokenCookie = (res: Response, token: string) => {
+  const isProduction = process.env.NODE_ENV === 'production'
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   })
 }
+
 
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   const { rollNo, password } = req.body
@@ -174,17 +176,8 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
 
 // Auto Seeding Database helper
-export const seedMockUsers = async () => {
+export const seedMockUsers = async (force: boolean = false) => {
   try {
-    try {
-      await User.collection.dropIndexes()
-      console.log('User collection indexes refreshed.')
-    } catch (e) {}
-    const userCount = await User.countDocuments()
-    if (userCount >= 4) return
-
-    await User.deleteMany({})
-    console.log('Seeding mock users database...')
     const mockUsers = [
       {
         name: 'Aarav Sharma',
@@ -241,68 +234,126 @@ export const seedMockUsers = async () => {
       }
     ]
 
+    console.log('Seeding / verifying mock users in MongoDB...')
+    const seededUsers: Array<{ rollNo?: string; role: string; name: string }> = []
     for (const u of mockUsers) {
-      await User.create(u)
+      const existingUser = await User.findOne({
+        $or: [{ rollNo: u.rollNo }, { email: u.email }]
+      })
+      if (!existingUser) {
+        const created = await User.create(u)
+        seededUsers.push({ rollNo: created.rollNo, role: created.role, name: created.name })
+      } else {
+        if (force) {
+          existingUser.password = u.password
+          existingUser.role = u.role as any
+          existingUser.roleName = u.roleName
+          existingUser.name = u.name
+          existingUser.avatar = u.avatar
+          existingUser.hostel = u.hostel
+          existingUser.room = u.room
+          existingUser.phone = u.phone
+          await existingUser.save()
+        }
+        seededUsers.push({ rollNo: existingUser.rollNo, role: existingUser.role, name: existingUser.name })
+      }
     }
-    console.log('Database seeded successfully with Student, Staff, Warden, and Admin mock profiles!')
+    console.log('Mock users verified in MongoDB:', seededUsers.map(u => `${u.rollNo} (${u.role})`).join(', '))
 
     // Seed default menus if empty
-    const menuCount = await Menu.countDocuments()
-    if (menuCount === 0) {
-      console.log('Seeding default meal menus...')
-      const defaultMenus = [
-        {
-          mealId: 'breakfast',
-          name: 'Breakfast',
-          time: '8:00 - 9:30 AM',
-          menuText: 'Masala Dosa · Sambar · Coconut Chutney · Filter Coffee · Seasonal Fruits',
-          cutoffTime: '07:00',
-          limit: 420
-        },
-        {
-          mealId: 'lunch',
-          name: 'Lunch',
-          time: '12:30 - 2:00 PM',
-          menuText: 'Jeera Rice · Dal Tadka · Paneer Butter Masala · Chapati · Salad · Gulab Jamun',
-          cutoffTime: '11:00',
-          limit: 420
-        },
-        {
-          mealId: 'dinner',
-          name: 'Dinner',
-          time: '7:30 - 9:00 PM',
-          menuText: 'Veg Biryani · Raita · Mirchi ka Salan · Chapati · Fruit Custard',
-          cutoffTime: '17:00',
-          limit: 420
-        }
-      ]
-
-      for (const m of defaultMenus) {
-        await Menu.create(m)
+    const defaultMenus = [
+      {
+        mealId: 'breakfast',
+        name: 'Breakfast',
+        time: '8:00 - 9:30 AM',
+        menuText: 'Masala Dosa · Sambar · Coconut Chutney · Filter Coffee · Seasonal Fruits',
+        cutoffTime: '07:00',
+        limit: 420
+      },
+      {
+        mealId: 'lunch',
+        name: 'Lunch',
+        time: '12:30 - 2:00 PM',
+        menuText: 'Jeera Rice · Dal Tadka · Paneer Butter Masala · Chapati · Salad · Gulab Jamun',
+        cutoffTime: '11:00',
+        limit: 420
+      },
+      {
+        mealId: 'dinner',
+        name: 'Dinner',
+        time: '7:30 - 9:00 PM',
+        menuText: 'Veg Biryani · Raita · Mirchi ka Salan · Chapati · Fruit Custard',
+        cutoffTime: '17:00',
+        limit: 420
       }
-      console.log('Default menus seeded successfully!')
+    ]
+
+    for (const m of defaultMenus) {
+      const existingMenu = await Menu.findOne({ mealId: m.mealId })
+      if (!existingMenu) {
+        await Menu.create(m)
+      } else if (force) {
+        existingMenu.name = m.name
+        existingMenu.time = m.time
+        existingMenu.menuText = m.menuText
+        existingMenu.cutoffTime = m.cutoffTime
+        existingMenu.limit = m.limit
+        await existingMenu.save()
+      }
     }
 
     // Seed default inventory items if empty
-    const inventoryCount = await InventoryItem.countDocuments()
-    if (inventoryCount === 0) {
-      console.log('Seeding default inventory stock items...')
-      const defaultInventory = [
-        { name: 'Basmati Rice', quantity: 250, unit: 'kg', category: 'grains' },
-        { name: 'Toor Dal', quantity: 120, unit: 'kg', category: 'grains' },
-        { name: 'Paneer', quantity: 45, unit: 'kg', category: 'dairy' },
-        { name: 'Cooking Oil', quantity: 80, unit: 'L', category: 'grains' },
-        { name: 'Wheat Flour', quantity: 300, unit: 'kg', category: 'grains' },
-        { name: 'Fresh Milk', quantity: 150, unit: 'L', category: 'dairy' },
-        { name: 'Mixed Vegetables', quantity: 90, unit: 'kg', category: 'vegetables' }
-      ]
+    const defaultInventory = [
+      { name: 'Basmati Rice', quantity: 250, unit: 'kg', category: 'grains' },
+      { name: 'Toor Dal', quantity: 120, unit: 'kg', category: 'grains' },
+      { name: 'Paneer', quantity: 45, unit: 'kg', category: 'dairy' },
+      { name: 'Cooking Oil', quantity: 80, unit: 'L', category: 'grains' },
+      { name: 'Wheat Flour', quantity: 300, unit: 'kg', category: 'grains' },
+      { name: 'Fresh Milk', quantity: 150, unit: 'L', category: 'dairy' },
+      { name: 'Mixed Vegetables', quantity: 90, unit: 'kg', category: 'vegetables' }
+    ]
 
-      for (const item of defaultInventory) {
+    for (const item of defaultInventory) {
+      const existingItem = await InventoryItem.findOne({ name: item.name })
+      if (!existingItem) {
         await InventoryItem.create(item)
+      } else if (force) {
+        existingItem.quantity = item.quantity
+        existingItem.unit = item.unit as any
+        existingItem.category = item.category as any
+        await existingItem.save()
       }
-      console.log('Default inventory items seeded successfully!')
     }
-  } catch (error) {
+
+    return {
+      users: seededUsers,
+      defaultCredentials: [
+        { role: 'student', rollNo: 'MS2024001', password: 'password123' },
+        { role: 'staff', rollNo: 'STAFF089', password: 'password123' },
+        { role: 'warden', rollNo: 'WARDEN007', password: 'password123' },
+        { role: 'admin', rollNo: 'ADMIN001', password: 'password123' }
+      ]
+    }
+  } catch (error: any) {
     console.error(`Error seeding database profiles: ${error}`)
+    throw error
   }
 }
+
+export const seedDatabaseHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await seedMockUsers(true)
+    res.status(200).json({
+      success: true,
+      message: 'Mock data seeded successfully into MongoDB',
+      ...result
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to seed database',
+      error: error.message
+    })
+  }
+}
+
