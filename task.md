@@ -1,0 +1,13 @@
+- [x] Setup Mongoose schemas for warden models
+    - [x] Create server/src/models/notification.model.ts
+- [x] Implement Backend Warden controllers and routing
+    - [x] Write server/src/controllers/warden.controller.ts
+    - [x] Write server/src/routes/warden.routes.ts
+    - [x] Mount warden router inside server/src/index.ts
+- [x] Integrate React client logic with warden API
+    - [x] Add warden API request hooks in src/services/api.ts
+    - [x] Refactor src/store/slices/leaveSlice.ts to use async API thunks for Warden approvals
+    - [x] Refactor src/store/slices/attendanceSlice.ts to use async API thunks for student lookup and SMS triggers
+- [x] Verify warden module features
+    - [x] Verify build compilation runs cleanly
+    - [x] Verify leaves approval logs and emergency SMS overrides
