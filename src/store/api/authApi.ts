@@ -7,10 +7,15 @@ interface LoginResponse {
   user: UserProfile
 }
 
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const BASE_URL = RAW_API_URL.replace(/\/+$/, '').endsWith('/api')
+  ? RAW_API_URL.replace(/\/+$/, '')
+  : `${RAW_API_URL.replace(/\/+$/, '')}/api`
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:5000/api',
+    baseUrl: BASE_URL,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem('accessToken')
       if (token) {

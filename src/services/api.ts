@@ -1,4 +1,7 @@
-const BASE_URL = 'http://localhost:5000/api'
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const BASE_URL = RAW_API_URL.replace(/\/+$/, '').endsWith('/api')
+  ? RAW_API_URL.replace(/\/+$/, '')
+  : `${RAW_API_URL.replace(/\/+$/, '')}/api`
 
 let accessToken: string | null = localStorage.getItem('accessToken')
 
